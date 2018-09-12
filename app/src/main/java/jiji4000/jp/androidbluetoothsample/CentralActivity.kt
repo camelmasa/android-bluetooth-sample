@@ -12,6 +12,7 @@ import android.os.ParcelUuid
 import android.util.Log
 import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_central.*
+import java.nio.ByteBuffer
 import java.util.*
 
 class CentralActivity : AppCompatActivity() {
@@ -19,6 +20,7 @@ class CentralActivity : AppCompatActivity() {
         val TAG = CentralActivity::class.java.simpleName
     }
 
+    private val iOSManufacturerId = 0x004C
     private var bleGatt: BluetoothGatt? = null
     private lateinit var bleScanner: BluetoothLeScanner
     private lateinit var bleCharacteristic: BluetoothGattCharacteristic
@@ -214,11 +216,28 @@ class CentralActivity : AppCompatActivity() {
     fun startScanByBleScanner() {
         bleScanner = bleAdapter.getBluetoothLeScanner()
         // フィルターするuuid
-        val parcelUuid = ParcelUuid.fromString(getString(R.string.uuid_service))
+        // val parcelUuid = ParcelUuid.fromString(getString(R.string.uuid_service))
         // uuidにフィルターをかける
-        val scanFilter = ScanFilter.Builder().setServiceUuid(parcelUuid).build()
+
+        // 通常は以下の実装で問題なし
+        // val scanFilter = ScanFilter.Builder().setServiceUuid(parcelUuid).build()
+
+        // Peripheral 側の iOS を検索する場合は ManufacturerData から検索を行う
+        // iOS が以下の ManufacturerData で固定かは要調査
+        // 以下の ManufacturerData は iPhone ME (iOS 11.4.1)
+        val scanFilter = ScanFilter.Builder().setManufacturerData(
+          iOSManufacturerId,
+          ByteBuffer.allocate(17)
+          .put(ByteArray(1) { 0x01.toByte() })
+          .put(ByteArray(14) { 0x00.toByte() })
+          .put(ByteArray(1) { 0x80.toByte() })
+          .put(ByteArray(1) { 0x00.toByte() })
+          .array()
+        ).build()
+
         val scanFilters = ArrayList<ScanFilter>()
         scanFilters.add(scanFilter)
+
         // setting
         val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED).build()
         // デバイスの検出.
